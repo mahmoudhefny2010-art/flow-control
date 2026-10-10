@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MIU QueueFlow — Smart Queue Management</title>
+  <meta name="description" content="Smart queue management platform for Misr International University" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Top navigation -->
+    <header class="topbar" id="topbar" hidden>
+      <a class="brand" href="#/">
+        <span class="brand-mark">MIU</span>
+        <span class="brand-name">QueueFlow</span>
+      </a>
+      <nav class="nav" id="mainNav"></nav>
+      <div class="topbar-right">
+        <div class="live-dot" id="connDot" title="Realtime connection"></div>
+        <div class="user-chip" id="userChip" hidden>
+          <span class="avatar" id="userAvatar"></span>
+          <span class="user-meta">
+            <strong id="userName"></strong>
+            <small id="userRole"></small>
+          </span>
+          <button class="icon-btn" id="logoutBtn" title="Sign out">⏻</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main view -->
+    <main id="view" class="view"></main>
+
+    <!-- Toasts -->
+    <div class="toast-stack" id="toasts"></div>
+
+    <!-- Modal root -->
+    <div class="modal-root" id="modalRoot" hidden></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

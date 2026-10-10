@@ -1,0 +1,29 @@
+{
+  "name": "miu-queueflow",
+  "version": "1.0.0",
+  "description": "Smart Queue Management Platform for Misr International University",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed": "node scripts/seed.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.16",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.1"
+  },
+  "optionalDependencies": {
+    "mongodb": "^6.12.0"
+  }
+}
