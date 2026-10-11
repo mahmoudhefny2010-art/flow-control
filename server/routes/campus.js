@@ -1,9 +1,10 @@
 // Campus map routes
 const express = require('express');
+const { createRouter } = require('../lib/asyncRouter');
 const { allowRoles } = require('../lib/auth');
 const campus = require('../lib/campus');
 
-const router = express.Router();
+const router = createRouter();
 
 // GET /api/campus/map - buildings, paths and live service markers
 router.get('/map', async (req, res) => {

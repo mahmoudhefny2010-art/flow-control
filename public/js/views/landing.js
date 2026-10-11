@@ -5,68 +5,45 @@ import { escapeHtml, etaText } from '../ui.js';
 export async function renderLanding(view, params) {
   view.innerHTML = `<div class="spinner"></div>`;
 
-  let services = [];
-  try {
-    const data = await api.get('/api/services');
-    services = data.services;
-  } catch (err) {
-    toast('Could not load services', err.message, 'error');
-  }
-
-  const totalWaiting = services.reduce((a, s) => a + s.waiting, 0);
-  const totalCalled = services.reduce((a, s) => a + s.called, 0);
-  const openCounters = services.reduce((a, s) => a + s.openCounters, 0);
-
   view.innerHTML = `
+    <div class="landing-content">
     <section class="hero">
-      <h1>Skip the line at Misr International University</h1>
-      <p>Book a virtual queue ticket from your phone, track your position live, and get notified the moment your turn arrives — across every student service on campus.</p>
-      <div class="flex" style="gap:12px;flex-wrap:wrap">
-        <a class="btn gold lg" href="#/portal">📋 Book a ticket</a>
-        <a class="btn lg" style="background:rgba(255,255,255,.14);color:#fff" href="#/map">🗺️ Campus map</a>
-      </div>
-      <div class="hero-stats">
-        <div class="hero-stat"><b class="mono">${services.length}</b><span>Services</span></div>
-        <div class="hero-stat"><b class="mono">${totalWaiting}</b><span>Waiting now</span></div>
-        <div class="hero-stat"><b class="mono">${openCounters}</b><span>Open counters</span></div>
-        <div class="hero-stat"><b class="mono">${totalCalled}</b><span>Being served</span></div>
+      <div class="hero-content">
+        <div class="hero-copy">
+          <h1>Skip the line at Misr International University</h1>
+          <p>Book your ticket, track your place, and come when it’s your turn.</p>
+          <div class="hero-stats">
+            <div class="hero-stat"><b class="mono" id="statServices">—</b><span>Services</span></div>
+            <div class="hero-stat"><b class="mono" id="statWaiting">—</b><span>Waiting now</span></div>
+            <div class="hero-stat"><b class="mono" id="statCounters">—</b><span>Open counters</span></div>
+            <div class="hero-stat"><b class="mono" id="statCalled">—</b><span>Being served</span></div>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <a class="btn gold lg" href="#/portal">📋 Book a ticket</a>
+        </div>
       </div>
     </section>
 
-    <div class="feature-grid">
-      <div class="feature"><div class="f-icon">📱</div><h4>User Portal</h4><p>Book, track and cancel queue tickets from any device with live QR tickets.</p></div>
-      <div class="feature"><div class="f-icon">⭐</div><h4>Priority Queue</h4><p>Fair priority lanes for faculty, staff and accessibility needs — no more starving queues.</p></div>
-      <div class="feature"><div class="f-icon">🖥️</div><h4>Employee Dashboard</h4><p>Call-next, serve, recall and no-show controls with real-time sync to every screen.</p></div>
-      <div class="feature"><div class="f-icon">📊</div><h4>Smart Analytics</h4><p>Wait-time trends, hourly heatmaps, demand forecasts and CSAT feedback insights.</p></div>
-    </div>
+    <section class="quick-guide" aria-label="How to use QueueFlow">
+      <div class="quick-guide-title"><span class="quick-guide-icon">↗</span><div><strong>Your visit, made easier</strong><small>Three quick steps, all from your phone</small></div></div>
+      <div class="quick-guide-step"><span>1</span><div><strong>Choose an office</strong><small>Advising or Registrar</small></div></div>
+      <div class="quick-guide-step"><span>2</span><div><strong>Get your ticket</strong><small>See your live place in line</small></div></div>
+      <div class="quick-guide-step"><span>3</span><div><strong>Come when called</strong><small>No waiting in a physical line</small></div></div>
+    </section>
 
-    <div class="page-head-row">
-      <div class="page-head"><h2>Services & live queues</h2><div class="sub">Live data refreshes automatically</div></div>
-      <a class="btn primary" href="#/portal">Open user portal →</a>
-    </div>
-
-    <div class="grid cols-4" id="liveServices">
-      ${services.map(serviceCard).join('') || '<div class="empty"><div class="e-icon">🗂️</div>No services available right now.</div>'}
-    </div>
-
-    <div class="section-gap grid cols-2">
-      <div class="card card-pad">
-        <h3 class="card-title">🖥️ Employee & admin tools</h3>
-        <p class="muted small">Service desk officers manage counters and call the next ticket; administrators configure services, monitor thresholds and integrate the legacy queue system.</p>
-        <div class="flex" style="gap:10px;margin-top:12px;flex-wrap:wrap">
-          <a class="btn ghost sm" href="#/employee">Employee dashboard</a>
-          <a class="btn ghost sm" href="#/admin">Admin dashboard</a>
-          <a class="btn ghost sm" href="#/analytics">Analytics</a>
-        </div>
+    <section class="services-section" aria-labelledby="servicesTitle">
+      <div class="services-heading">
+        <div><span class="services-eyebrow">MIU STUDENT SERVICES</span><h2 id="servicesTitle">Choose an office</h2><p>Check the live queue, then book your place.</p></div>
+        <span class="live-status"><i></i><span id="dataStatus" role="status">Connecting…</span></span>
       </div>
-      <div class="card card-pad">
-        <h3 class="card-title">🔗 Legacy system integration</h3>
-        <p class="muted small">QueueFlow integrates with the university's existing queue system over REST APIs — no replacement required. Sync queues and tickets from the admin panel.</p>
-        <div class="flex" style="gap:10px;margin-top:12px">
-          <a class="btn ghost sm" href="#/admin?tab=integration">Open integration panel</a>
-        </div>
-      </div>
+      <div class="service-toolbar"><label class="service-search"><span aria-hidden="true">⌕</span><input id="serviceSearch" type="search" placeholder="Find an office" aria-label="Search services or buildings"></label><span id="serviceCount" class="service-count"></span></div>
+      <div class="grid cols-2" id="liveServices"><div class="empty">Loading services…</div></div>
+    </section>
+
+    <a class="staff-tools-link" href="#/employee"><span class="staff-tools-icon">↗</span><span><strong>Staff workspace</strong><small>Employee and administrator tools</small></span><span class="staff-tools-arrow">→</span></a>
     </div>
+
   `;
   let services = [];
   let failed = false;
@@ -78,10 +55,9 @@ export async function renderLanding(view, params) {
     const visible = services.filter(s => (s.name + ' ' + (s.building || '')).toLowerCase().includes(query));
     select('#serviceCount').textContent = failed ? 'Unavailable' : visible.length + ' services';
     select('#liveServices').innerHTML = visible.map(s => {
-      const closed = !s.openCounters;
-      const level = closed ? 'grey' : s.waiting === 0 ? 'success' : s.waiting < 8 ? 'warn' : 'danger';
-      const label = closed ? 'Counters closed' : s.waiting === 0 ? 'No queue' : s.waiting < 8 ? 'Moderate' : 'Busy';
-      return `<a class="card service-card" href="#/book/${encodeURIComponent(s._id)}"><div class="sc-head"><span class="service-initial" aria-hidden="true">${escapeHtml(s.name.slice(0,2).toUpperCase())}</span><span class="badge ${level}">${label}</span></div><h3>${escapeHtml(s.name)}</h3><p class="sc-meta">${escapeHtml(s.building || 'Campus service')}${s.floor ? ' &middot; Floor ' + escapeHtml(String(s.floor)) : ''}</p><div class="sc-stats"><div class="sc-stat"><b>${s.waiting}</b><span>Waiting</span></div><div class="sc-stat"><b>${etaText(s.avgServiceMinutes)}</b><span>Typical visit</span></div><div class="sc-stat"><b>${s.openCounters}</b><span>Open desks</span></div></div><div class="service-link">View service <span aria-hidden="true">&#8599;</span></div></a>`;
+      const level = s.waiting === 0 ? 'success' : s.waiting < 8 ? 'warn' : 'danger';
+      const label = s.waiting === 0 ? 'No wait' : s.waiting < 8 ? 'Moderate' : 'Busy';
+      return `<a class="card service-card" href="#/book/${encodeURIComponent(s._id)}" style="text-decoration:none;color:inherit"><div class="sc-head"><div><h4>${escapeHtml(s.name)}</h4><div class="sc-meta">${escapeHtml(s.building)}${s.floor ? ' · Floor ' + escapeHtml(String(s.floor)) : ''}</div></div><span class="badge ${level}">${label}</span></div><div class="sc-stats"><div class="sc-stat"><b class="mono">${s.waiting}</b><span>Waiting</span></div><div class="sc-stat"><b class="mono">${s.called}</b><span>Called</span></div><div class="sc-stat"><b class="mono">${etaText(s.estimatedWaitMinutes)}</b><span>Est. wait</span></div></div><div class="sc-meta small">⏱️ Avg wait today: ${s.avgWaitSamples ? etaText(s.avgWaitMinutesToday) : 'Collecting data'} · ~${s.avgServiceMinutes} min per visit ${s.priorityEnabled ? '· ⭐ priority enabled' : ''}</div></a>`;
     }).join('') || `<div class="empty services-empty"><h3>${failed ? 'Services are temporarily unavailable' : query ? 'No matching services' : 'No services available yet'}</h3><p>${failed ? 'Please try loading the service list again.' : query ? 'Try another service name or building.' : 'Services will appear here once they are available.'}</p>${failed ? '<button class="btn primary" id="retryServices">Try again</button>' : ''}</div>`;
     select('#retryServices')?.addEventListener('click', refresh);
   }

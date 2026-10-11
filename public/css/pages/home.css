@@ -1,0 +1,14 @@
+/* Route-level styles; shared tokens and components live in /css/style.css. */
+.view { min-width: 0; }
+.view :where(.card, .btn, .input, .select) { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
+@media (prefers-reduced-motion: reduce) { .view *, .view *::before, .view *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+.landing-content { display: block; }
+.landing .hero { overflow: hidden; margin-bottom: 0; }
+.landing .quick-guide { margin: 30px 0 0; }
+.landing .services-section { margin-top: 54px; }
+.landing .services-heading { gap: 18px; }
+.landing .service-toolbar { margin-top: 16px; }
+@media (max-width: 760px) {
+  .landing .quick-guide { margin-top: 22px; }
+  .landing .services-section { margin-top: 38px; }
+}

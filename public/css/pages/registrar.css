@@ -1,0 +1,4 @@
+/* Route-level styles; shared tokens and components live in /css/style.css. */
+.view { min-width: 0; }
+.view :where(.card, .btn, .input, .select) { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
+@media (prefers-reduced-motion: reduce) { .view *, .view *::before, .view *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

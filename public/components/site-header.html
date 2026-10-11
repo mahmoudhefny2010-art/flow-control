@@ -1,0 +1,25 @@
+<header class="topbar" id="topbar" hidden>
+  <a class="brand" href="#/">
+    <span class="brand-logo-tile"><img src="/images/logo.svg.png" alt="" /></span>
+    <span class="brand-name">Misr International University<small>QueueFlow &middot; Student Services</small></span>
+  </a>
+  <nav class="nav" id="mainNav" aria-label="Main navigation"></nav>
+  <div class="topbar-right">
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
+      <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.2 15.3A8.6 8.6 0 0 1 8.7 3.8a8.7 8.7 0 1 0 11.5 11.5Z" /></svg>
+      <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+    </button>
+    <div class="live-dot" id="connDot" title="Realtime connection" aria-label="Realtime connection"></div>
+    <a class="btn ghost sm" id="dashboardLink" href="#/employee" hidden>Dashboard</a>
+    <a class="btn ghost sm" id="accountLink" href="#/account" hidden>Account</a>
+    <a class="btn primary sm" id="loginLink" href="#/login">Sign in</a>
+    <div class="user-chip" id="userChip" hidden>
+      <span class="avatar" id="userAvatar"></span>
+      <span class="user-meta">
+        <strong id="userName"></strong>
+        <small id="userRole"></small>
+      </span>
+      <button class="icon-btn" id="logoutBtn" title="Sign out">Sign out</button>
+    </div>
+  </div>
+</header>

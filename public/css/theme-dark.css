@@ -1,0 +1,145 @@
+/* MIU dark palette adapted from the supplied theme for QueueFlow components. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --brand: #f0525d;
+  --brand-strong: #e5434e;
+  --brand-ink: #edf2f8;
+  --brand-soft: rgba(185, 28, 28, .18);
+  --accent: #91a0b5;
+  --accent-soft: #1b293d;
+  --success: #4ade9a;
+  --success-soft: rgba(22, 163, 74, .16);
+  --warn: #f3bb53;
+  --warn-soft: rgba(217, 119, 6, .16);
+  --danger: #ff7e87;
+  --danger-soft: rgba(220, 38, 38, .15);
+  --ink: #edf2f8;
+  --ink-2: #b2bfd0;
+  --ink-3: #91a0b5;
+  --line: #2a3a51;
+  --bg: #0b1220;
+  --card: #111b2b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .22), 0 5px 16px rgba(0, 0, 0, .18);
+  --shadow-lg: 0 14px 32px rgba(0, 0, 0, .32);
+}
+
+:root[data-theme="dark"] body {
+  color-scheme: dark;
+  background: #0b1220;
+  background-image: radial-gradient(ellipse at 50% -18%, rgba(185, 28, 28, .11), transparent 54%);
+  color: #edf2f8;
+}
+
+:root[data-theme="dark"] body :is(h1, h2, h3, h4, h5, h6, strong, b, label, legend) { color: #edf2f8; }
+:root[data-theme="dark"] body :is(p, small, .muted, .small, .sc-meta, .service-count, .quick-guide-title small, .quick-guide-step small) { color: #b2bfd0; }
+
+/* Components with white surfaces in the light palette need dark surfaces too. */
+:root[data-theme="dark"] .landing .hero {
+  background: linear-gradient(120deg, #111b2b 0%, #172438 68%, #1b293d 100%);
+  border-color: #2a3a51;
+  border-left-color: #c93540;
+  color: #edf2f8;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .24);
+}
+:root[data-theme="dark"] .landing .hero-copy h1 { color: #edf2f8; }
+:root[data-theme="dark"] .landing .hero-copy p,
+:root[data-theme="dark"] .landing .hero-stat span { color: #b2bfd0; }
+:root[data-theme="dark"] .landing .hero-stats,
+:root[data-theme="dark"] .landing .hero-stat { border-color: #2a3a51; }
+:root[data-theme="dark"] .landing .quick-guide,
+:root[data-theme="dark"] .landing .feature,
+:root[data-theme="dark"] .landing .staff-tools-link,
+:root[data-theme="dark"] .landing .service-card {
+  background: #111b2b;
+  color: #edf2f8;
+  border-color: #2a3a51;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, .2);
+}
+:root[data-theme="dark"] .landing .quick-guide-step > span { border-color: #6f3540; }
+:root[data-theme="dark"] .landing .quick-guide-icon,
+:root[data-theme="dark"] .landing .staff-tools-icon { background: rgba(185, 28, 28, .2); color: #ff9ca3; }
+:root[data-theme="dark"] .landing .service-card .sc-stat { background: #172438; }
+:root[data-theme="dark"] .landing .service-search { background: #0d1727; color: #b2bfd0; border-color: #344760; }
+:root[data-theme="dark"] .landing .service-search input { background: transparent; }
+:root[data-theme="dark"] .landing .services-heading h2 { color: #edf2f8; }
+
+:root[data-theme="dark"] body :is(.registrar-intake, .registrar-queue-row, .registrar-scan-result, .registrar-ops-toolbar, .outside-search-result, .appointment-summary, .registrar-awaiting-scan) {
+  background-color: #111b2b;
+  color: #edf2f8;
+  border-color: #2a3a51;
+}
+:root[data-theme="dark"] body :is(.outside-search-result:hover, .registrar-queue-row:hover) { background-color: #172438; }
+:root[data-theme="dark"] body :is(.near-turn-banner, .alert-banner) { background-color: #2a2318; color: #ffe0a0; border-color: #66512a; }
+:root[data-theme="dark"] body :is(.near-turn-banner small, .appointment-summary span) { color: #d0be93; }
+
+:root[data-theme="dark"] .topbar {
+  color: #edf2f8;
+  background: rgba(17, 27, 43, .96);
+  border-bottom-color: #c93540;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .24);
+}
+
+:root[data-theme="dark"] .topbar .brand,
+:root[data-theme="dark"] .brand-name { color: #edf2f8; }
+:root[data-theme="dark"] .brand-name small { color: #b2bfd0; }
+:root[data-theme="dark"] .topbar .nav { background: #0b1220; border-color: #2a3a51; }
+:root[data-theme="dark"] .topbar .nav a { color: #c6d2e2; }
+:root[data-theme="dark"] .topbar .nav a:hover,
+:root[data-theme="dark"] .topbar .nav a.active { color: #ff9ca3; background: #1b293d; }
+:root[data-theme="dark"] .topbar .nav a.active { box-shadow: 0 1px 4px rgba(0, 0, 0, .25); }
+:root[data-theme="dark"] .topbar .user-chip { color: #edf2f8; background: #1b293d; }
+:root[data-theme="dark"] .topbar .user-meta small { color: #b2bfd0; }
+:root[data-theme="dark"] .topbar .icon-btn { color: #edf2f8; }
+:root[data-theme="dark"] .theme-toggle { color: #f3bb53; background: #1b293d; border-color: #344760; }
+:root[data-theme="dark"] .theme-toggle:hover { color: #ffe39a; background: #22334b; border-color: #526783; }
+:root[data-theme="dark"] .theme-icon-moon { display: none; }
+:root[data-theme="dark"] .theme-icon-sun { display: block; }
+
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .panel,
+:root[data-theme="dark"] .section,
+:root[data-theme="dark"] .kpi,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .queue-card,
+:root[data-theme="dark"] .service-card,
+:root[data-theme="dark"] .ticket-card,
+:root[data-theme="dark"] .modal,
+:root[data-theme="dark"] .modal-foot,
+:root[data-theme="dark"] .modal-head,
+:root[data-theme="dark"] .table-wrap {
+  background-color: #111b2b;
+  color: #edf2f8;
+  border-color: #2a3a51;
+}
+
+:root[data-theme="dark"] .card :is(h1, h2, h3, h4, strong, label),
+:root[data-theme="dark"] .panel :is(h1, h2, h3, h4, strong, label),
+:root[data-theme="dark"] .section :is(h1, h2, h3, h4, strong, label) { color: #edf2f8; }
+:root[data-theme="dark"] .muted,
+:root[data-theme="dark"] .card :is(p, small),
+:root[data-theme="dark"] .panel :is(p, small),
+:root[data-theme="dark"] .section :is(p, small) { color: #b2bfd0; }
+
+:root[data-theme="dark"] .input,
+:root[data-theme="dark"] .select,
+:root[data-theme="dark"] .textarea,
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  color-scheme: dark;
+  background-color: #0d1727;
+  color: #edf2f8;
+  border-color: #344760;
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder { color: #8798af; }
+:root[data-theme="dark"] .btn:not(.primary):not(.accent):not(.danger):not(.gold) { background-color: #172438; color: #dce4ee; border-color: #344760; }
+:root[data-theme="dark"] .btn:not(.primary):not(.accent):not(.danger):not(.gold):hover { background-color: #22334b; color: #fff; }
+:root[data-theme="dark"] .table th { color: #b2bfd0; border-color: #2a3a51; }
+:root[data-theme="dark"] .table td { border-color: #1b293d; }
+:root[data-theme="dark"] .table tbody tr:hover { background: #172438; }
+:root[data-theme="dark"] .badge.grey { background: #1b293d; color: #c9d3e0; }
+:root[data-theme="dark"] .empty { color: #edf2f8; }
+:root[data-theme="dark"] .toast { box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+:root[data-theme="dark"] option { background: #111b2b; color: #edf2f8; }

@@ -53,6 +53,7 @@ async function bootstrap() {
   app.use('/api/services', require('./routes/services'));
   app.use('/api/tickets', require('./routes/tickets'));
   app.use('/api/employee', require('./routes/employee'));
+  app.use('/api/registrar', require('./routes/registrar'));
   app.use('/api/admin', require('./routes/admin'));
   app.use('/api/analytics', require('./routes/analytics'));
   app.use('/api/campus', require('./routes/campus'));
@@ -61,6 +62,17 @@ async function bootstrap() {
 
   // --- Socket.io -----------------------------------------------------------
   attachSocket(io, async () => store);
+
+  // Keep old directory-style page links working after flattening page shells.
+  const pageShells = new Set([
+    'account', 'admin', 'analytics', 'auth', 'booking', 'employee', 'feedback',
+    'home', 'my-queue', 'outside', 'portal', 'portal-booking', 'register',
+    'registrar', 'room',
+  ]);
+  app.get(['/pages/:page', '/pages/:page/index.html'], (req, res, next) => {
+    if (!pageShells.has(req.params.page)) return next();
+    res.redirect(301, `/pages/${req.params.page}.html`);
+  });
 
   // --- Static SPA -----------------------------------------------------------
   app.use(express.static(path.join(__dirname, '..', 'public')));

@@ -1,0 +1,11 @@
+/* Route-level styles; shared tokens and components live in /css/style.css. */
+.view { min-width: 0; }
+.view :where(.card, .btn, .input, .select) { transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease; }
+@media (prefers-reduced-motion: reduce) { .view *, .view *::before, .view *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
+.portal-empty-state { display:flex; align-items:center; gap:18px; margin:18px 0 30px; padding:22px 26px; }
+.portal-empty-icon { display:grid; place-items:center; flex:none; width:54px; height:54px; border-radius:16px; background:var(--brand-soft); font-size:26px; }
+.portal-empty-state h3 { margin:0 0 3px; color:var(--brand-ink); font-size:17px; }
+.portal-empty-state p { margin:0; font-size:13px; }
+.portal-empty-state .btn { margin-left:auto; }
+.portal-empty-state + .grid { margin-top:0; }
+@media(max-width:600px) { .portal-empty-state { align-items:flex-start; flex-wrap:wrap; margin:14px 0 24px; padding:18px; gap:12px; } .portal-empty-state .btn { margin:0 0 0 66px; } }

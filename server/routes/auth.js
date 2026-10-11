@@ -1,11 +1,13 @@
 // Auth routes: register / login / me / password change
 const express = require('express');
+const { createRouter } = require('../lib/asyncRouter');
 const rateLimit = require('express-rate-limit');
 const { validate, badRequest } = require('../lib/validate');
 const { hashPassword, verifyPassword, signToken, verifyToken, allowRoles } = require('../lib/auth');
 const { id } = require('../lib/util');
 
-const router = express.Router();
+const router = createRouter();
+router.use('/google', require('./googleAuth'));
 
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -17,7 +19,7 @@ const authLimiter = rateLimit({
 
 function publicUser(u) {
   return {
-    _id: u._id, name: u.name, email: u.email, role: u.role,
+    _id: u._id, name: u.name, email: u.email, role: u.role, roomCode: u.roomCode || null,
     studentId: u.studentId || '', phone: u.phone || '',
     preferences: u.preferences || { emailNotifications: true },
     active: u.active !== false,
@@ -31,7 +33,7 @@ router.post('/register', authLimiter, async (req, res) => {
     name: { type: 'string', required: true, min: 2, max: 80 },
     email: { type: 'email', required: true, max: 120 },
     password: { type: 'string', required: true, min: 8, max: 128 },
-    studentId: { type: 'string', max: 30 },
+    studentId: { type: 'string', max: 30, pattern: /^\d{4}\/\d{5}$/ },
     phone: { type: 'string', max: 20 },
   });
   if (!valid) return badRequest(res, errors);
@@ -39,6 +41,10 @@ router.post('/register', authLimiter, async (req, res) => {
   const store = req.app.get('store');
   const exists = await store.findOne('users', { email: req.body.email.toLowerCase() });
   if (exists) return res.status(409).json({ error: 'An account with this email already exists' });
+  const studentId = (req.body.studentId || '').trim();
+  if (studentId && await store.findOne('users', { studentId })) {
+    return res.status(409).json({ error: 'An account with this MIU ID already exists' });
+  }
 
   const user = {
     _id: id(),
@@ -46,7 +52,7 @@ router.post('/register', authLimiter, async (req, res) => {
     email: req.body.email.toLowerCase().trim(),
     passwordHash: await hashPassword(req.body.password),
     role: 'student',
-    studentId: req.body.studentId || '',
+    studentId,
     phone: req.body.phone || '',
     preferences: { emailNotifications: true },
     active: true,
@@ -60,14 +66,18 @@ router.post('/register', authLimiter, async (req, res) => {
 
 // POST /api/auth/login
 router.post('/login', authLimiter, async (req, res) => {
-  const { valid, errors } = validate(req.body, {
-    email: { type: 'email', required: true },
+  const identifier = typeof req.body?.identifier === 'string' ? req.body.identifier : req.body?.email;
+  const { valid, errors } = validate({ ...req.body, identifier }, {
+    identifier: { type: 'string', required: true, min: 3, max: 120 },
     password: { type: 'string', required: true },
   });
   if (!valid) return badRequest(res, errors);
 
   const store = req.app.get('store');
-  const user = await store.findOne('users', { email: req.body.email.toLowerCase() });
+  const loginId = identifier.trim();
+  const user = loginId.includes('@')
+    ? await store.findOne('users', { email: loginId.toLowerCase() })
+    : await store.findOne('users', { studentId: loginId });
   if (!user || user.active === false) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -91,10 +101,10 @@ router.get('/me', async (req, res) => {
 });
 
 // POST /api/auth/change-password
-router.post('/change-password', allowRoles('student', 'employee', 'admin'), async (req, res) => {
+router.post('/change-password', allowRoles('student', 'employee', 'outside-usher', 'room-usher', 'registrar-staff', 'admin'), async (req, res) => {
   const { valid, errors } = validate(req.body, {
     currentPassword: { type: 'string', required: true },
-    newPassword: { type: 'string', required: true, min: 8, max: 128 },
+    newPassword: { type: 'string', required: true, min: 12, max: 128 },
   });
   if (!valid) return badRequest(res, errors);
   const store = req.app.get('store');

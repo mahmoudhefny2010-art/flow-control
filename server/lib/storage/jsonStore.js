@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const COLLECTIONS = ['users', 'services', 'counters', 'tickets', 'feedback', 'notifications', 'settings', 'legacyState'];
+const COLLECTIONS = ['users', 'services', 'counters', 'tickets', 'feedback', 'notifications', 'settings', 'legacyState', 'auditLogs'];
 
 function matchValue(docValue, cond) {
   if (cond && typeof cond === 'object' && !Array.isArray(cond)) {
@@ -80,7 +80,13 @@ class JsonStore {
       const raw = fs.readFileSync(this.filePath, 'utf8');
       this.data = JSON.parse(raw);
     } catch (err) {
-      this.data = {};
+      if (err.code === 'ENOENT') {
+        this.data = {};
+      } else if (err instanceof SyntaxError) {
+        throw new Error(`Dev data file contains invalid JSON: ${this.filePath}`, { cause: err });
+      } else {
+        throw err;
+      }
     }
     for (const col of COLLECTIONS) {
       if (!Array.isArray(this.data[col])) this.data[col] = [];

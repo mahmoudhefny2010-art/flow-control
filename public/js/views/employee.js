@@ -3,7 +3,7 @@ import { api, socket } from '../api.js';
 import { toast, etaText, fmtTime, statusBadge, escapeHtml } from '../ui.js';
 
 export async function renderEmployee(view) {
-  if (!api.user || api.user.role === 'student') {
+  if (!api.user || !['employee', 'registrar-staff', 'admin'].includes(api.user.role)) {
     location.hash = '#/login?redirect=%23%2Femployee';
     return;
   }
@@ -20,7 +20,7 @@ export async function renderEmployee(view) {
     view.innerHTML = `
       <div class="page-head-row">
         <div class="page-head"><h1>Employee Console</h1>
-          <div class="sub">${escapeHtml(api.user.name)} · manage service counters</div>
+          <div class="sub">${escapeHtml(api.user.name)} · ${api.user.role === 'registrar-staff' ? `Room ${escapeHtml(api.user.roomCode || '')} registrar queue` : 'manage service counters'}</div>
         </div>
         <div class="flex">
           <span class="badge accent">Served today: <b class="mono" style="margin-left:4px">${stats.servedToday ?? 0}</b></span>
@@ -35,6 +35,7 @@ export async function renderEmployee(view) {
 
   function queuePanel(q) {
     const called = q.called || [];
+    const callableWaiting = q.roomCode ? q.waiting.filter((ticket) => ticket.arrivalStatus === 'arrived').length : q.waiting.length;
     return `
       <div class="card" data-queue="${q._id}">
         <div class="card-pad" style="border-bottom:1px solid var(--line)">
@@ -74,7 +75,7 @@ export async function renderEmployee(view) {
         </div>
 
         <div class="card-pad" style="padding-top:10px;border-top:1px solid var(--line)">
-          <button class="btn primary btn-block" data-call-next="${q._id}" ${q.waiting.length === 0 ? 'disabled' : ''}>
+          <button class="btn primary btn-block" data-call-next="${q._id}" ${callableWaiting === 0 ? 'disabled' : ''}>
             🔔 Call next ticket
           </button>
         </div>
@@ -98,26 +99,41 @@ export async function renderEmployee(view) {
   }
 
   function waitingRow(t, i) {
+    if (t.roomCode && t.arrivalStatus !== 'arrived') {
+      return `
+        <div class="queue-item">
+          <div class="position-bubble">${i + 1}</div>
+          <div class="ticket-code">${escapeHtml(t.code)}</div>
+          <div class="qi-main"><div class="qi-name">Student not checked in</div><div class="qi-sub">Awaiting QR scan at room ${escapeHtml(t.roomCode)}</div></div>
+        </div>`;
+    }
+    const profile = t.registrarProfile;
+    const admission = profile
+      ? `<div class="qi-sub"><b>${escapeHtml(profile.studentId)} · ${escapeHtml(profile.major)}</b> · ${escapeHtml(profile.certificateType)} · ${profile.paymentStatus === 'paid' ? 'Reported paid' : 'Payment pending'} · ${profile.documentsStatus === 'complete' ? 'Papers complete' : 'Papers pending'}</div>`
+      : '';
+    const arrival = t.roomCode
+      ? `<span class="badge ${t.arrivalStatus === 'arrived' ? 'success' : 'grey'}">${t.arrivalStatus === 'arrived' ? 'Arrived' : 'Not checked in'}</span> · `
+      : '';
     return `
       <div class="queue-item">
         <div class="position-bubble ${t.priority === 'high' ? 'high' : ''}">${i + 1}</div>
         <div class="ticket-code">${escapeHtml(t.code)}</div>
         <div class="qi-main">
-          <div class="qi-name">${escapeHtml(t.userName || 'Walk-in')} ${t.priority === 'high' ? '<span class="priority-flag">⭐ priority</span>' : ''}</div>
-          <div class="qi-sub">${t.note ? escapeHtml(t.note) + ' · ' : ''}joined ${fmtTime(t.createdAt)} · est. ${etaText(t.etaMinutes ?? 0)}</div>
+          <div class="qi-name">${escapeHtml(t.userName || 'Walk-in')} ${t.priority === 'high' ? '<span class="priority-flag">priority</span>' : ''}</div>
+          ${admission}
+          <div class="qi-sub">${arrival}${t.note ? escapeHtml(t.note) + ' · ' : ''}joined ${fmtTime(t.createdAt)} · est. ${etaText(t.etaMinutes ?? 0)}</div>
         </div>
       </div>`;
   }
-
   function wire() {
     view.querySelectorAll('[data-call-next]').forEach((btn) => {
       btn.onclick = async () => {
         const q = queues.find((x) => x._id === btn.dataset.callNext);
-        const mine = (q.myCounters || q.counters || []).filter((c) => c.status === 'open' && (c.employeeId === api.user._id || api.user.role === 'admin'));
+        const mine = (q.myCounters || q.counters || []).filter((c) => c.status === 'open' && (!q.roomCode || c.roomCode === q.roomCode) && (c.employeeId === api.user._id || api.user.role === 'admin'));
         const counter = mine[0] || (q.counters || []).find((c) => c.status === 'open');
         if (!counter) { toast('No open counter', 'Open a counter first', 'warn'); return; }
         try {
-          const { ticket } = await api.post(`/api/employee/counters/${counter._id}/call`, { serviceId: q._id });
+          const { ticket } = await api.post(`/api/employee/counters/${counter._id}/call`, { serviceId: q._id, ...(q.roomCode ? { roomCode: q.roomCode } : {}) });
           toast('Ticket called 🔔', `${ticket.code} → ${ticket.counterName || counter.name}`, 'success');
         } catch (err) { toast('Call failed', err.message, 'error'); }
       };

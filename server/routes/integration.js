@@ -1,9 +1,10 @@
 // Integration routes: bridge to the EXISTING queue system (legacy API)
 const express = require('express');
+const { createRouter } = require('../lib/asyncRouter');
 const { allowRoles } = require('../lib/auth');
 const engine = require('../lib/queueEngine');
 
-const router = express.Router();
+const router = createRouter();
 
 // GET /api/integration/status - is the legacy system reachable?
 router.get('/status', allowRoles('employee', 'admin'), async (req, res) => {

@@ -34,7 +34,7 @@ export async function renderAnalytics(view) {
 
     <div class="grid cols-4">
       <div class="card kpi brand"><div class="kpi-label">Tickets (${escapeHtml(ov.period || '')})</div><div class="kpi-value mono">${ov.totalTickets ?? 0}</div><div class="kpi-sub">${ov.served ?? 0} served · ${ov.waitingNow ?? 0} in queue now</div></div>
-      <div class="card kpi accent"><div class="kpi-label">Avg wait</div><div class="kpi-value mono">${ov.avgWaitMinutes ?? 0}<span style="font-size:14px"> min</span></div><div class="kpi-sub">p95 ${ov.p95WaitMinutes ?? 0} min · service ${ov.avgServiceMinutes ?? 0} min</div></div>
+      <div class="card kpi accent"><div class="kpi-label">Avg wait</div><div class="kpi-value mono">${ov.avgWaitSamples ? ov.avgWaitMinutes : '—'}<span style="font-size:14px"> min</span></div><div class="kpi-sub">${ov.avgWaitSamples ? `Calculated from ${ov.avgWaitSamples} completed visits` : 'No completed visits in this period'}</div></div>
       <div class="card kpi gold"><div class="kpi-label">CSAT</div><div class="kpi-value mono">${ov.csat || '—'}<span style="font-size:14px"> /5</span></div><div class="kpi-sub">${ov.feedbackCount ?? 0} ratings · ${ov.responseRate ?? 0}% response rate</div></div>
       <div class="card kpi danger"><div class="kpi-label">Forecast next hour</div><div class="kpi-value mono">${(forecast.next2Hours || [])[1]?.expected ?? 0}</div><div class="kpi-sub">expected arrivals · peak ${String(forecast.peakHour ?? 0).padStart(2, '0')}:00</div></div>
     </div>
@@ -69,7 +69,7 @@ export async function renderAnalytics(view) {
                 <td><b>${escapeHtml(s.name)}</b><div class="small muted">${escapeHtml(s.building)}</div></td>
                 <td class="mono">${s.total}</td>
                 <td class="mono">${s.served}</td>
-                <td class="mono">${s.avgWaitMinutes}m</td>
+                <td class="mono">${s.avgWaitSamples ? `${s.avgWaitMinutes}m` : '—'}</td>
                 <td class="mono">${s.avgServiceMinutes}m</td>
                 <td>${s.csat ? stars(Math.round(s.csat)) : '—'}</td>
                 <td class="mono">${s.priorityShare}%</td>
@@ -93,7 +93,7 @@ export async function renderAnalytics(view) {
             { label: '4 stars', value: (fb.distribution || {}).four || (fb.distribution || {})['4'] || 0, color: '#7bbf7b' },
             { label: '3 stars', value: (fb.distribution || {}).three || (fb.distribution || {})['3'] || 0, color: '#e9a319' },
             { label: '2 stars', value: (fb.distribution || {}).two || (fb.distribution || {})['2'] || 0, color: '#e07a3f' },
-            { label: '1 star', value: (fb.distribution || {}).one || (fb.distribution || {})['1'] || 0, color: '#d64545' },
+            { label: '1 star', value: (fb.distribution || {}).one || (fb.distribution || {})['1'] || 0, color: '#dc0006' },
           ],
         })}
       </div>

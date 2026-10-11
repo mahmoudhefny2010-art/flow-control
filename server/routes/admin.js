@@ -1,17 +1,39 @@
 // Admin routes: services CRUD, counters, users, notifications, system
 const express = require('express');
+const crypto = require('crypto');
+const { createRouter } = require('../lib/asyncRouter');
 const { validate, badRequest } = require('../lib/validate');
 const { allowRoles } = require('../lib/auth');
 const { id, round1 } = require('../lib/util');
 const engine = require('../lib/queueEngine');
 
-const router = express.Router();
+const router = createRouter();
+
+router.get('/registrar/booking-settings', allowRoles('admin'), async (req, res) => {
+  const record = await req.app.get('store').findOne('settings', { _id: 'registrar:booking' });
+  res.json({ enabled: record?.value?.enabled !== false, closedDays: Array.isArray(record?.value?.closedDays) ? record.value.closedDays : ['friday', 'saturday'] });
+});
+
+router.put('/registrar/booking-settings', allowRoles('admin'), async (req, res) => {
+  const { valid, errors } = validate(req.body || {}, {
+    enabled: { type: 'enum', enum: [true, false], required: true },
+    closedDays: { type: 'array', required: true },
+  });
+  if (!valid) return badRequest(res, errors);
+  const allowedDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  if (!req.body.closedDays.every((day) => allowedDays.includes(day)) || new Set(req.body.closedDays).size !== req.body.closedDays.length) {
+    return badRequest(res, { closedDays: 'Choose unique weekday names' });
+  }
+  const value = { enabled: req.body.enabled, closedDays: req.body.closedDays };
+  await req.app.get('store').update('settings', { _id: 'registrar:booking' }, { $set: { value, updatedAt: new Date().toISOString() } }, { upsert: true });
+  res.json(value);
+});
 
 // --- Dashboard overview --------------------------------------------------
 router.get('/overview', allowRoles('admin'), async (req, res) => {
   const store = req.app.get('store');
   const analytics = require('../lib/analytics');
-  const [today, week, services, users, counters, notifications] = await Promise.all([
+  const [today, week, services, rawUsers, counters, notifications] = await Promise.all([
     analytics.overview(store, { days: 1 }),
     analytics.overview(store, { days: 7 }),
     store.find('services', {}, { sort: { name: 1 } }),
@@ -19,7 +41,12 @@ router.get('/overview', allowRoles('admin'), async (req, res) => {
     store.find('counters', {}, { sort: { name: 1 } }),
     store.find('notifications', {}, { sort: { createdAt: -1 }, limit: 50 }),
   ]);
-  res.json({ today, week, services, users, counters, notifications });
+  const users = rawUsers.map(({ passwordHash, ...user }) => user);
+  const registrar = services.find((service) => service.code === 'REG');
+  const visibleCounters = registrar
+    ? counters.map((counter) => counter.serviceId === registrar._id ? engine.resolveRegistrarCounters(counters.filter((entry) => entry.serviceId === registrar._id)).find((entry) => entry._id === counter._id) : counter)
+    : counters;
+  res.json({ today, week, services, users, counters: visibleCounters, notifications });
 });
 
 // --- Services CRUD -------------------------------------------------------
@@ -105,13 +132,18 @@ router.post('/counters', allowRoles('admin'), async (req, res) => {
     name: { type: 'string', required: true, max: 60 },
     serviceId: { type: 'string', required: true },
     employeeId: { type: 'string' },
+    roomCode: { type: 'enum', enum: ['OOB', 'OO7'] },
   });
   if (!valid) return badRequest(res, errors);
   const store = req.app.get('store');
+  const service = await store.findOne('services', { _id: req.body.serviceId });
+  if (!service) return res.status(404).json({ error: 'Service not found' });
+  if (service.code === 'REG' && !req.body.roomCode) return badRequest(res, { roomCode: 'Choose OOB or OO7 for Registrar counters' });
   const counter = {
     _id: id(),
     name: req.body.name.trim(),
     serviceId: req.body.serviceId,
+    ...(service.code === 'REG' ? { roomCode: req.body.roomCode } : {}),
     employeeId: req.body.employeeId || null,
     status: 'open',
     createdAt: new Date().toISOString(),
@@ -125,13 +157,14 @@ router.put('/counters/:id', allowRoles('admin'), async (req, res) => {
     name: { type: 'string', max: 60 },
     status: { type: 'enum', enum: ['open', 'closed'] },
     employeeId: { type: 'string' },
+    roomCode: { type: 'enum', enum: ['OOB', 'OO7'] },
   });
   if (!valid) return badRequest(res, errors);
   const store = req.app.get('store');
   const counter = await store.findOne('counters', { _id: req.params.id });
   if (!counter) return res.status(404).json({ error: 'Counter not found' });
   const update = {};
-  for (const key of ['name', 'status', 'employeeId']) {
+  for (const key of ['name', 'status', 'employeeId', 'roomCode']) {
     if (req.body[key] !== undefined) update[key] = req.body[key];
   }
   await store.update('counters', { _id: counter._id }, { $set: update });
@@ -140,23 +173,34 @@ router.put('/counters/:id', allowRoles('admin'), async (req, res) => {
 
 // --- Users ---------------------------------------------------------------
 router.put('/users/:id', allowRoles('admin'), async (req, res) => {
+  const roleHasRoom = ['room-usher', 'registrar-staff'].includes(req.body?.role);
+  if (req.body?.role && !roleHasRoom) delete req.body.roomCode;
   const { valid, errors } = validate(req.body || {}, {
     name: { type: 'string', max: 80 },
-    role: { type: 'enum', enum: ['student', 'employee', 'admin'] },
+    role: { type: 'enum', enum: ['student', 'employee', 'outside-usher', 'room-usher', 'registrar-staff', 'admin'] },
+    roomCode: { type: 'enum', enum: ['OOB', 'OO7'] },
     active: { type: 'enum', enum: [true, false] },
-    studentId: { type: 'string', max: 30 },
+    studentId: { type: 'string', max: 30, pattern: /^\d{4}\/\d{5}$/ },
     phone: { type: 'string', max: 20 },
   });
   if (!valid) return badRequest(res, errors);
   const store = req.app.get('store');
   const user = await store.findOne('users', { _id: req.params.id });
   if (!user) return res.status(404).json({ error: 'User not found' });
+  if (['room-usher', 'registrar-staff'].includes(req.body.role || user.role) && !(req.body.roomCode || user.roomCode)) return badRequest(res, { roomCode: 'Choose a room for this staff account' });
+  if (req.body.studentId && req.body.studentId !== user.studentId) {
+    const duplicateId = await store.findOne('users', { studentId: req.body.studentId });
+    if (duplicateId) return res.status(409).json({ error: 'MIU ID is already assigned to another account' });
+  }
   const update = {};
-  for (const key of ['name', 'role', 'active', 'studentId', 'phone']) {
+  for (const key of ['name', 'role', 'roomCode', 'active', 'studentId', 'phone']) {
     if (req.body[key] !== undefined) update[key] = req.body[key];
   }
+  if (req.body.role && !roleHasRoom) update.roomCode = null;
   await store.update('users', { _id: user._id }, { $set: update });
-  res.json({ user: await store.findOne('users', { _id: user._id }) });
+  const updatedUser = await store.findOne('users', { _id: user._id });
+  const { passwordHash, ...safeUser } = updatedUser;
+  res.json({ user: safeUser });
 });
 
 // POST /api/admin/users - create staff account (employee/admin)
@@ -165,10 +209,12 @@ router.post('/users', allowRoles('admin'), async (req, res) => {
   const { valid, errors } = v(req.body || {}, {
     name: { type: 'string', required: true, max: 80 },
     email: { type: 'email', required: true, max: 120 },
-    password: { type: 'string', required: true, min: 8, max: 128 },
-    role: { type: 'enum', enum: ['employee', 'admin'] },
+    password: { type: 'string', required: true, min: 12, max: 128 },
+    role: { type: 'enum', required: true, enum: ['employee', 'outside-usher', 'room-usher', 'registrar-staff', 'admin'] },
+    roomCode: { type: 'enum', enum: ['OOB', 'OO7'] },
   });
   if (!valid) return br(res, errors);
+  if (['room-usher', 'registrar-staff'].includes(req.body.role) && !req.body.roomCode) return br(res, { roomCode: 'Choose a room for this staff account' });
   const bcrypt = require('bcryptjs');
   const store = req.app.get('store');
   const exists = await store.findOne('users', { email: req.body.email.toLowerCase() });
@@ -179,12 +225,23 @@ router.post('/users', allowRoles('admin'), async (req, res) => {
     email: req.body.email.toLowerCase().trim(),
     passwordHash: await bcrypt.hash(req.body.password, 10),
     role: req.body.role,
+    ...(req.body.roomCode ? { roomCode: req.body.roomCode } : {}),
     preferences: { emailNotifications: true },
     active: true,
     createdAt: new Date().toISOString(),
   };
   await store.insert('users', user);
-  res.status(201).json({ user: { _id: user._id, name: user.name, email: user.email, role: user.role } });
+  res.status(201).json({ user: { _id: user._id, name: user.name, email: user.email, role: user.role, roomCode: user.roomCode || null } });
+});
+
+router.post('/users/:id/reset-password', allowRoles('admin'), async (req, res) => {
+  const store = req.app.get('store');
+  const user = await store.findOne('users', { _id: req.params.id });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const temporaryPassword = `Qf-${crypto.randomBytes(18).toString('base64url')}-aA9!`;
+  const bcrypt = require('bcryptjs');
+  await store.update('users', { _id: user._id }, { $set: { passwordHash: await bcrypt.hash(temporaryPassword, 10), passwordResetAt: new Date().toISOString() } });
+  res.json({ temporaryPassword, user: { _id: user._id, name: user.name, email: user.email, role: user.role, roomCode: user.roomCode || null } });
 });
 
 // --- Notifications log ----------------------------------------------------

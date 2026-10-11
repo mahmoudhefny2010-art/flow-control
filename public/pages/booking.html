@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>try { if (localStorage.getItem('queueflow-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch {}</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="MIU QueueFlow student services and queue management" />
+  <title>MIU QueueFlow · Student Services</title>
+  <link rel="stylesheet" href="/css/style.css?v=queueflow-responsive-20261011-1" />
+  <link rel="stylesheet" href="/components/site-header.css?v=nav-responsive-dark-20261011-1" />
+  <link rel="stylesheet" href="/components/site-footer.css?v=footer-custom-20261011-1" />
+  <link rel="stylesheet" href="/css/theme-dark.css?v=queueflow-dark-20261011-2" />
+</head>
+<body data-default-route="/book">
+  <div id="app">
+    <div id="siteHeader"></div>
+    <main id="view" class="view"></main>
+    <div id="siteFooter"></div>
+    <div class="toast-stack" id="toasts"></div>
+    <div class="modal-root" id="modalRoot" hidden></div>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/js/app.js?v=queueflow-mobile-dark-nav-20261011-2"></script>
+</body>
+</html>

@@ -1,9 +1,10 @@
 // Analytics routes
 const express = require('express');
+const { createRouter } = require('../lib/asyncRouter');
 const { allowRoles } = require('../lib/auth');
 const analytics = require('../lib/analytics');
 
-const router = express.Router();
+const router = createRouter();
 
 const guard = allowRoles('employee', 'admin');
 

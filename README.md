@@ -84,6 +84,17 @@ npm start        # → http://localhost:3000
 Open http://localhost:3000 directly. Set `PORT` in `.env` to use another free port.
 For watch mode, run `npm run dev`. If a previous watch session is still running,
 stop it with Ctrl+C before starting another.
+Copy `.env.example` to `.env` for local configuration. `npm run proxy` starts
+the optional development proxy on port 8080.
+
+### Vercel deployment
+
+The root `index.js` is the Express entry point, and files under `public/` are
+served as static assets. When importing this repository into Vercel, configure
+`JWT_SECRET` and `MONGODB_URI` for the Production environment. The local JSON
+store under `data/` is for development and does not provide persistent Vercel
+storage. Google sign-in is optional; if enabled, set its client credentials and
+the production callback URL in `GOOGLE_REDIRECT_URI`.
 
 ### Demo accounts
 
@@ -104,6 +115,7 @@ Anyone can also self-register a student account from the login page.
 | `JWT_SECRET` | dev secret | Sign JWTs — **change in production** |
 | `LEGACY_API_BASE` | *(empty)* | Existing queue system base URL (empty = built-in mock) |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` | *(empty)* | Real email delivery |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | *(empty)* | Optional Google sign-in |
 | `PRIORITY_BOOST_MIN` | `45` | How far priority tickets jump |
 | `CALL_TIMEOUT_MIN` | `5` | Auto no-show after this long |
 | `QUEUE_ALERT_THRESHOLD` | `15` | Alert admins when a queue exceeds this |
@@ -153,40 +165,9 @@ All under `http://localhost:3000/api`. Auth via `Authorization: Bearer <JWT>`.
 
 ---
 
-## 📁 Project structure
+## Project structure
 
-```
-flow control/
-├── server/
-│   ├── index.js              # entry: Express + Socket.io + static SPA
-│   ├── config/               # env configuration
-│   ├── routes/               # auth, services, tickets, employee, admin,
-│   │                         # analytics, campus, integration, notifications
-│   └── lib/
-│       ├── auth.js           # JWT + bcrypt + role guard
-│       ├── queueEngine.js    # join/call/serve/no-show/cancel + legacy sync
-│       ├── analytics.js      # KPIs, heatmap, forecast, trends, CSAT
-│       ├── campus.js         # campus graph + Dijkstra routing
-│       ├── emailer.js        # SMTP or dev mailer + notification log
-│       ├── legacyApi.js      # mock of the existing queue system
-│       ├── legacyClient.js   # REST client (node:http — port 11 safe)
-│       ├── socket.js         # rooms + authenticated joins
-│       ├── storage/          # MongoStore / JsonStore behind one interface
-│       └── validate.js       # zero-dep input validation
-├── public/                   # SPA (no build step)
-│   ├── index.html
-│   ├── css/style.css         # full design system
-│   └── js/
-│       ├── app.js            # hash router + bootstrap
-│       ├── api.js            # fetch wrapper + socket client
-│       ├── ui.js             # toasts, modals, SVG charts (bar/line/donut/heatmap)
-│       └── views/            # landing, auth, portal, booking, ticket,
-│                             # employee, admin, map, analytics, feedback
-├── scripts/
-│   ├── seed.js               # demo data generator
-│   └── dev-proxy.js          # 8080 → 11 preview proxy
-└── data/db.json              # dev database (auto-created)
-```
+See [docs/project-structure.md](docs/project-structure.md) for the current folder map and guidance on where to add code. Local configuration is documented in [.env.example](.env.example), and Google sign-in setup is in [docs/google-sign-in.md](docs/google-sign-in.md).
 
 ## 🧪 Verified end-to-end
 

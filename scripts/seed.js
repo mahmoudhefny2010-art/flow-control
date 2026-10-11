@@ -12,14 +12,8 @@ const rand = (min, max) => Math.round(min + rng() * (max - min));
 const pick = (arr) => arr[Math.floor(rng() * arr.length)];
 
 const SERVICES = [
-  { name: 'Registrar Services', code: 'REG', category: 'Academic', building: 'Registration Hall', floor: 'Ground', room: 'G-12', description: 'Course registration, transcripts, enrollment certificates', avgServiceMinutes: 6, priorityEnabled: true, map: { x: 330, y: 400 } },
-  { name: 'Student Affairs', code: 'STU', category: 'Student Life', building: 'Student Center', floor: '2', room: '2-04', description: 'ID cards, clubs, student support, disciplinary services', avgServiceMinutes: 8, priorityEnabled: true, map: { x: 500, y: 245 } },
-  { name: 'IT Helpdesk', code: 'IT', category: 'Technical', building: 'IT Center', floor: 'Ground', room: 'LAB-1', description: 'Email, VPN, LMS access, laptop and lab support', avgServiceMinutes: 12, priorityEnabled: false, map: { x: 180, y: 265 } },
-  { name: 'Library Services', code: 'LIB', category: 'Academic', building: 'Library', floor: '1', room: 'L-101', description: 'Borrowing, returns, reference desk, study rooms', avgServiceMinutes: 5, priorityEnabled: false, map: { x: 670, y: 385 } },
-  { name: 'Treasury & Financial Aid', code: 'FIN', category: 'Finance', building: 'Main Admin Building', floor: '1', room: '1-08', description: 'Tuition payments, installments, scholarships', avgServiceMinutes: 7, priorityEnabled: true, map: { x: 465, y: 475 } },
-  { name: 'Medical Clinic', code: 'CLN', category: 'Health', building: 'Medical Clinic', floor: 'Ground', room: 'CL-1', description: 'Student health services, medical reports', avgServiceMinutes: 10, priorityEnabled: true, map: { x: 800, y: 235 } },
-  { name: 'Admissions', code: 'ADM', category: 'Admissions', building: 'Main Admin Building', floor: '2', room: '2-11', description: 'Applications, acceptance, documents verification', avgServiceMinutes: 9, priorityEnabled: false, map: { x: 540, y: 475 } },
-  { name: 'Career Center', code: 'CAR', category: 'Career', building: 'Career Center', floor: '1', room: 'CC-2', description: 'Internships, job fairs, CV reviews', avgServiceMinutes: 6, priorityEnabled: false, map: { x: 300, y: 115 } },
+  { name: 'Advising Office', code: 'ADV', category: 'Academic', building: 'MIU Campus', floor: '', room: '', description: 'Academic advising and student guidance', avgServiceMinutes: 10, priorityEnabled: false, map: { x: 500, y: 300 } },
+  { name: 'Registrar Office', code: 'REG', category: 'Academic', building: 'Registration Hall', floor: 'Ground', room: 'OOB / OO7', description: 'Newcomer admission and registration intake', avgServiceMinutes: 6, priorityEnabled: false, map: { x: 330, y: 400 } },
 ];
 
 const FIRST = ['Ahmed', 'Mariam', 'Youssef', 'Fatma', 'Karim', 'Nour', 'Omar', 'Hana', 'Tarek', 'Salma', 'Ramy', 'Dina', 'Ali', 'Rania', 'Mostafa', 'Aya', 'Hassan', 'Laila', 'Sami', 'Menna'];
@@ -54,10 +48,22 @@ async function main() {
     users.push(e);
   }
 
+  const intakeAccounts = [
+    { name: 'Campus Entrance Usher', email: 'outside@miu.edu.eg', role: 'outside-usher' },
+    { name: 'OOB Room Usher', email: 'room.oob@miu.edu.eg', role: 'room-usher', roomCode: 'OOB' },
+    { name: 'OO7 Room Usher', email: 'room.oo7@miu.edu.eg', role: 'room-usher', roomCode: 'OO7' },
+    { name: 'OOB Registrar Staff', email: 'registrar.oob@miu.edu.eg', role: 'registrar-staff', roomCode: 'OOB' },
+    { name: 'OO7 Registrar Staff', email: 'registrar.oo7@miu.edu.eg', role: 'registrar-staff', roomCode: 'OO7' },
+  ];
+  for (const account of intakeAccounts) users.push({
+    _id: id(), ...account, passwordHash: await hashPassword(config.seed.employeePass),
+    active: true, preferences: { emailNotifications: true }, createdAt: new Date().toISOString(),
+  });
+
   const student = {
     _id: id(), name: 'Demo Student', email: config.seed.studentEmail,
     passwordHash: await hashPassword(config.seed.studentPass),
-    role: 'student', studentId: 'MIU-2023-0042', phone: '01001234567',
+    role: 'student', studentId: '2024/06700', phone: '01001234567',
     active: true, preferences: { emailNotifications: true },
     createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
   };
@@ -71,7 +77,7 @@ async function main() {
       email: `student${i + 1}@miu.edu.eg`,
       passwordHash: await hashPassword('Student@1234'),
       role: 'student',
-      studentId: `MIU-202${rand(3, 6)}-${pad(rand(1, 999), 4)}`,
+      studentId: `202${rand(3, 6)}/${pad(rand(1, 99999), 5)}`,
       active: true,
       preferences: { emailNotifications: rng() > 0.3 },
       createdAt: new Date(Date.now() - rand(30, 300) * 86400000).toISOString(),
@@ -96,6 +102,7 @@ async function main() {
         _id: id(),
         name: `${s.code} Counter ${i + 1}`,
         serviceId: s._id,
+        ...(s.code === 'REG' ? { roomCode: i === 0 ? 'OOB' : 'OO7' } : {}),
         employeeId: employees[(services.indexOf(s) + i) % employees.length]._id,
         status: 'open',
         createdAt: new Date().toISOString(),

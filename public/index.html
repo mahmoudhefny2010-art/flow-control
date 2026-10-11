@@ -1,37 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>try { if (localStorage.getItem('queueflow-theme') === 'dark') document.documentElement.dataset.theme = 'dark'; } catch {}</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MIU QueueFlow — Smart Queue Management</title>
+  <title>MIU QueueFlow � Smart Queue Management</title>
   <meta name="description" content="Smart queue management platform for Misr International University" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
-  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ðŸŽ“</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css?v=queueflow-responsive-20261011-1" />
+  <link rel="stylesheet" href="/components/site-header.css?v=nav-responsive-dark-20261011-1" />
+  <link rel="stylesheet" href="/components/site-footer.css?v=footer-custom-20261011-1" />
+  <link rel="stylesheet" href="/css/theme-dark.css?v=queueflow-dark-20261011-2" />
 </head>
 <body>
   <div id="app">
     <!-- Top navigation -->
-    <header class="topbar" id="topbar" hidden>
-      <a class="brand" href="#/">
-        <span class="brand-mark">MIU</span>
-        <span class="brand-name">QueueFlow</span>
-      </a>
-      <nav class="nav" id="mainNav"></nav>
-      <div class="topbar-right">
-        <div class="live-dot" id="connDot" title="Realtime connection"></div>
-        <div class="user-chip" id="userChip" hidden>
-          <span class="avatar" id="userAvatar"></span>
-          <span class="user-meta">
-            <strong id="userName"></strong>
-            <small id="userRole"></small>
-          </span>
-          <button class="icon-btn" id="logoutBtn" title="Sign out">⏻</button>
-        </div>
-      </div>
-    </header>
+    <div id="siteHeader"></div>
 
     <!-- Main view -->
     <main id="view" class="view"></main>
+    <div id="siteFooter"></div>
 
     <!-- Toasts -->
     <div class="toast-stack" id="toasts"></div>
@@ -41,6 +29,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/js/app.js"></script>
+  <script type="module" src="/js/app.js?v=queueflow-mobile-dark-nav-20261011-2"></script>
 </body>
 </html>

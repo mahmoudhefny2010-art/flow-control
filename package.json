@@ -2,11 +2,13 @@
   "name": "miu-queueflow",
   "version": "1.0.0",
   "description": "Smart Queue Management Platform for Misr International University",
-  "main": "server/index.js",
+  "main": "index.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "test": "node --test",
+    "proxy": "node scripts/dev-proxy.js"
   },
   "engines": {
     "node": ">=18"

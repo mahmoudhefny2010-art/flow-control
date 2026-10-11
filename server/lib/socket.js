@@ -5,9 +5,11 @@ function attachSocket(io, getStore) {
   // rooms: service:<id>, ticket:<id>, employee, admin
   io.on('connection', (socket) => {
     let user = null;
+    let authPending = Promise.resolve();
 
     // Optional authenticated join: client emits 'auth' with JWT
-    socket.on('auth', async (token) => {
+    socket.on('auth', (token) => {
+      authPending = (async () => {
       const jwt = require('jsonwebtoken');
       const config = require('../config');
       try {
@@ -20,13 +22,18 @@ function attachSocket(io, getStore) {
           if (user.role === 'admin') socket.join('admin');
           if (user.role === 'employee') socket.join('employee');
         }
-      } catch (err) { /* anonymous connection stays read-only */ }
+      } catch (err) { user = null; /* anonymous connection stays read-only */ }
+      })();
     });
 
-    socket.on('subscribe', (...rooms) => {
+    socket.on('subscribe', async (...rooms) => {
+      await authPending;
       rooms.forEach((room) => {
-        // only allow service/ticket rooms
-        if (/^(service|ticket):[a-z0-9-]{10,}$/i.test(room)) socket.join(room);
+        // Service/ticket rooms are public; admission details require staff auth.
+        const roomMatch = room.match(/^room:([a-z0-9-]{10,}):(OOB|OO7)$/i);
+        if (/^(service|ticket):[a-z0-9-]{10,}$/i.test(room)
+          || (roomMatch && user && ['room-usher', 'registrar-staff', 'admin'].includes(user.role)
+            && (user.role === 'admin' || user.roomCode === roomMatch[2]))) socket.join(room);
       });
     });
 

@@ -1,6 +1,6 @@
 // User portal: my tickets, live position, QR, service catalog
 import { api, socket, subscribe, unsubscribe } from '../api.js';
-import { toast, etaText, fmtTime, fmtDate, statusBadge, escapeHtml, openModal, initials } from '../ui.js';
+import { toast, etaText, fmtTime, fmtDate, fmtDateTime, statusBadge, escapeHtml, openModal, initials } from '../ui.js';
 
 export async function renderPortal(view) {
   if (!api.user) { location.hash = '#/login?redirect=%23%2Fportal'; return; }
@@ -15,7 +15,7 @@ export async function renderPortal(view) {
   let { tickets } = ticketData;
   const notifications = notifData.notifications || [];
 
-  const active = tickets.filter((t) => t.status === 'waiting' || t.status === 'called');
+  let active = tickets.filter((t) => t.status === 'waiting' || t.status === 'called');
   const history = tickets.filter((t) => t.status === 'served' || t.status === 'cancelled' || t.status === 'no-show');
 
   view.innerHTML = `
@@ -28,13 +28,13 @@ export async function renderPortal(view) {
     </div>
 
     ${active.length === 0 ? `
-      <div class="card card-pad" style="text-align:center;padding:44px 20px">
-        <div style="font-size:40px">🎫</div>
-        <h3 style="margin:8px 0 4px">No active tickets</h3>
-        <p class="muted">Pick a service below to join the virtual queue.</p>
+      <div class="card portal-empty-state">
+        <div class="portal-empty-icon" aria-hidden="true">🎫</div>
+        <div><h3>No active tickets</h3><p class="muted">Choose an office to book your next visit.</p></div>
+        <a class="btn primary" href="#/portal/book">Browse offices</a>
       </div>` : ''}
 
-    <div class="grid cols-2" id="activeTickets">
+    <div class="grid cols-2" id="activeTickets" aria-live="polite">
       ${active.map(activeCard).join('')}
     </div>
 
@@ -85,17 +85,20 @@ export async function renderPortal(view) {
   function activeCard(t) {
     const pos = t.position || 0;
     const pct = t.status === 'called' ? 100 : Math.max(6, 100 - (pos - 1) * 14);
+    const nearTurn = t.status === 'waiting' && ((pos > 0 && pos <= 2) || (t.etaMinutes != null && Number(t.etaMinutes) <= 5));
     return `
       <div class="card card-pad" data-ticket="${t._id}">
         <div class="flex-between">
           <div>
             <span class="badge ${t.priority === 'high' ? 'gold' : 'accent'}">${t.priority === 'high' ? '⭐ Priority' : 'Standard'}</span>
             <h3 style="margin-top:8px" class="mono">${escapeHtml(t.code)}</h3>
+            ${t.appointmentNumber ? `<div class="appointment-summary"><b>Appointment ${escapeHtml(t.appointmentNumber)}</b><span>${escapeHtml(t.appointmentDate || '')} · ${escapeHtml(t.timeSlot || '')} · Queue #${escapeHtml(String(t.queueNumber || '—'))}</span><span>${t.arrivalStatus === 'arrived' && t.roomCode ? `Assigned room ${escapeHtml(t.roomCode)}` : 'Room assigned at check-in'}</span><strong>Arrive and complete check-in by 3:00 PM on the appointment date. Late arrivals cannot be admitted.</strong></div>` : ''}
             <div class="muted small">${escapeHtml(t.serviceName)} · ${escapeHtml(t.building)}</div>
           </div>
-          ${statusBadge(t.status)}
+          ${t.appointmentNumber ? `<span class="badge ${t.appointmentStatus === 'called' ? 'accent' : t.appointmentStatus === 'pending' ? 'warn' : t.appointmentStatus === 'completed' ? 'success' : 'grey'}">${escapeHtml(t.appointmentStatus || 'booked')}</span>` : statusBadge(t.status)}
         </div>
         ${t.status === 'waiting' ? `
+          ${nearTurn ? `<div class="near-turn-banner" role="status" aria-live="polite"><span aria-hidden="true">🔔</span><div><strong>${pos === 1 ? "You're next — stay close" : 'Your turn is coming soon'}</strong><small>${pos === 1 ? 'Please stay near the office and watch for your call.' : `You’re #${pos}${t.etaMinutes != null ? ` · about ${etaText(t.etaMinutes)} left` : ' in line'}. Please get ready.`}</small></div></div>` : ''}
           <div style="margin:16px 0 8px">
             <div class="flex-between" style="margin-bottom:6px">
               <span class="small muted">Your position</span>
@@ -130,45 +133,82 @@ export async function renderPortal(view) {
         </div>
         <div class="sc-stats">
           <div class="sc-stat"><b class="mono">${s.waiting}</b><span>Queue</span></div>
-          <div class="sc-stat"><b class="mono">${etaText(Math.round(s.avgWaitMinutesToday || s.avgServiceMinutes))}</b><span>Est. wait</span></div>
+          <div class="sc-stat"><b class="mono">${etaText(s.estimatedWaitMinutes)}</b><span>Est. wait</span></div>
         </div>
+        <div class="sc-meta small">Avg wait today: ${s.avgWaitSamples ? etaText(s.avgWaitMinutesToday) : 'Collecting data'}</div>
       </a>`;
   }
 
-  // cancel buttons
-  view.querySelectorAll('[data-cancel]').forEach((btn) => {
-    btn.onclick = () => {
-      openModal({
-        title: 'Cancel ticket?',
-        body: '<p>Your position in the queue will be released. This cannot be undone.</p>',
-        actions: [
-          { label: 'Keep ticket', kind: 'ghost' },
-          {
-            label: 'Yes, cancel', kind: 'danger',
-            onClick: async () => {
-              try {
-                await api.post(`/api/tickets/${btn.dataset.cancel}/cancel`);
-                toast('Ticket cancelled', '', 'success');
-                renderPortal(view);
-              } catch (err) { toast('Cancel failed', err.message, 'error'); }
-            },
-          },
-        ],
-      });
-    };
+  const activeContainer = view.querySelector('#activeTickets');
+  activeContainer?.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-cancel]');
+    if (!btn) return;
+    openModal({
+      title: 'Cancel ticket?',
+      body: '<p>Your position in the queue will be released. This cannot be undone.</p>',
+      actions: [
+        { label: 'Keep ticket', kind: 'ghost' },
+        { label: 'Yes, cancel', kind: 'danger', onClick: async () => {
+          try {
+            await api.post(`/api/tickets/${btn.dataset.cancel}/cancel`);
+            toast('Ticket cancelled', '', 'success');
+            await refreshActiveTickets();
+          } catch (err) { toast('Cancel failed', err.message, 'error'); }
+        } },
+      ],
+    });
   });
 
-  // live updates
-  const handler = (data) => {
-    const card = view.querySelector(`[data-ticket="${data._id}"]`);
-    if (card) renderPortal(view);
-    // refresh active ticket cards on any queue change
+  let refreshingTickets = false;
+  async function refreshActiveTickets() {
+    if (refreshingTickets) return;
+    refreshingTickets = true;
+    try {
+      const data = await api.get('/api/tickets/mine');
+      const latest = data.tickets || [];
+      for (const next of latest) {
+        const previous = tickets.find((ticket) => ticket._id === next._id);
+        if (previous?.status === 'waiting' && previous.position > 2 && next.status === 'waiting' && next.position <= 2) {
+          toast('Your turn is close', `${next.code}: you are #${next.position}. Please get ready.`, 'info');
+        }
+      }
+      tickets = latest;
+      active = tickets.filter((ticket) => ticket.status === 'waiting' || ticket.status === 'called');
+      if (!activeContainer) return;
+      activeContainer.innerHTML = active.length
+        ? active.map(activeCard).join('')
+        : '<div class="card card-pad" style="text-align:center;padding:36px 20px;grid-column:1/-1"><h3 style="margin:8px 0 4px">No active tickets</h3><p class="muted">Pick a service below to join the virtual queue.</p></div>';
+    } catch { /* keep the last visible position when the network is unavailable */ }
+    finally { refreshingTickets = false; }
+  }
+
+  const serviceRooms = [...new Set(services.map((service) => `service:${service._id}`))];
+  if (serviceRooms.length) subscribe(...serviceRooms);
+  let refreshingServices = false;
+  async function refreshServiceEstimates() {
+    if (refreshingServices) return;
+    refreshingServices = true;
+    try {
+      const latest = await api.get('/api/services');
+      services = latest.services || [];
+      const grid = view.querySelector('#svcGrid');
+      if (grid) grid.innerHTML = services.map(serviceMini).join('');
+    } catch { /* keep the last live estimates visible during a brief outage */ }
+    finally { refreshingServices = false; }
+  }
+  const handler = (snapshot) => {
+    refreshServiceEstimates();
+    if (active.some((ticket) => ticket.serviceId === snapshot?.service?._id)) refreshActiveTickets();
   };
-  socket.on('ticket:called', handler);
-  socket.on('ticket:served', handler);
+  socket.on('queue:updated', handler);
+  const serviceTimer = setInterval(refreshServiceEstimates, 30000);
+  const appointmentUpdate = (event) => { toast('Appointment update', event?.message || 'Your appointment status changed.', 'info'); refreshActiveTickets(); };
+  socket.on('appointment:updated', appointmentUpdate);
   const cleanup = () => {
-    socket.off('ticket:called', handler);
-    socket.off('ticket:served', handler);
+    clearInterval(serviceTimer);
+    socket.off('queue:updated', handler);
+    socket.off('appointment:updated', appointmentUpdate);
+    if (serviceRooms.length) unsubscribe(...serviceRooms);
   };
   return cleanup;
 }

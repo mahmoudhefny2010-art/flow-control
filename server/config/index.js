@@ -2,8 +2,17 @@ require('dotenv').config({ override: false });
 
 const path = require('path');
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set when NODE_ENV=production');
+}
+
+const parsedPort = process.env.PORT ? Number(process.env.PORT) : 3000;
+if (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+  throw new Error('PORT must be a valid TCP port from 1 to 65535');
+}
+
 const config = {
-  port: parseInt(process.env.PORT, 10) || 3000,
+  port: parsedPort,
   nodeEnv: process.env.NODE_ENV || 'development',
   jwtSecret: process.env.JWT_SECRET || 'miu-queueflow-dev-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '12h',

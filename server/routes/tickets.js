@@ -1,11 +1,12 @@
 // Ticket routes: my tickets, ticket detail, public verify, feedback
 const express = require('express');
+const { createRouter } = require('../lib/asyncRouter');
 const { validate, badRequest } = require('../lib/validate');
 const { allowRoles } = require('../lib/auth');
 const engine = require('../lib/queueEngine');
 const { id, minutesBetween, round1 } = require('../lib/util');
 
-const router = express.Router();
+const router = createRouter();
 
 // GET /api/tickets/mine - tickets of the logged-in user
 router.get('/mine', allowRoles('student', 'employee', 'admin'), async (req, res) => {
@@ -17,7 +18,7 @@ router.get('/mine', allowRoles('student', 'employee', 'admin'), async (req, res)
     const service = await store.findOne('services', { _id: t.serviceId });
     let eta = null;
     if (t.status === 'waiting' && service) {
-      eta = await engine.estimateWait(store, service, t.position || 1);
+      eta = await engine.estimateWait(store, service, t.position || 1, t.roomCode);
     }
     const counters = t.counterId ? await store.findOne('counters', { _id: t.counterId }) : null;
     out.push({ ...t, etaMinutes: eta, counter: counters ? counters.name : null });
@@ -36,7 +37,7 @@ router.get('/:id', allowRoles('student', 'employee', 'admin'), async (req, res) 
   const service = await store.findOne('services', { _id: ticket.serviceId });
   let eta = null;
   if (ticket.status === 'waiting' && service) {
-    eta = await engine.estimateWait(store, service, ticket.position || 1);
+    eta = await engine.estimateWait(store, service, ticket.position || 1, ticket.roomCode);
   }
   const counter = ticket.counterId ? await store.findOne('counters', { _id: ticket.counterId }) : null;
   const feedback = await store.findOne('feedback', { ticketId: ticket._id });
@@ -86,6 +87,9 @@ router.post('/:id/feedback', allowRoles('student', 'employee', 'admin'), async (
   const store = req.app.get('store');
   const ticket = await store.findOne('tickets', { _id: req.params.id });
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (ticket.status !== 'served') {
+    return res.status(409).json({ error: 'Feedback is only available after service is completed' });
+  }
   if (ticket.userId !== req.user.sub && req.user.role === 'student') {
     return res.status(403).json({ error: 'Forbidden' });
   }

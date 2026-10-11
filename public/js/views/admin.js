@@ -1,12 +1,15 @@
 // Admin dashboard: overview, services, counters, users, integration, notifications
 import { api, socket } from '../api.js';
-import { toast, fmtTime, fmtDateTime, statusBadge, escapeHtml, openModal, barChart } from '../ui.js';
+import { toast, fmtTime, fmtDate, fmtDateTime, statusBadge, escapeHtml, openModal, closeModal, barChart } from '../ui.js';
 
 const TABS = [
   ['overview', '📊 Overview'],
   ['services', '🗂️ Services'],
   ['counters', '🖥️ Counters'],
   ['users', '👥 Users'],
+  ['appointments', 'Registrar appointments'],
+  ['booking', 'Booking schedule'],
+  ['audit', 'Audit log'],
   ['integration', '🔗 Integration'],
   ['notifications', '🔔 Notifications'],
 ];
@@ -47,6 +50,9 @@ export async function renderAdmin(view, params) {
       else if (tab === 'services') await renderServices(body);
       else if (tab === 'counters') await renderCounters(body);
       else if (tab === 'users') await renderUsers(body);
+      else if (tab === 'appointments') await renderAppointments(body);
+      else if (tab === 'booking') await renderBookingSchedule(body);
+      else if (tab === 'audit') await renderAudit(body);
       else if (tab === 'integration') await renderIntegration(body);
       else if (tab === 'notifications') await renderNotifications(body);
     } catch (err) {
@@ -56,14 +62,13 @@ export async function renderAdmin(view, params) {
 
   // ---- Overview ------------------------------------------------------
   async function renderOverview(body) {
-    const { data } = await api.get('/api/admin/overview');
-    const { today, week, services, users, counters, notifications } = data;
+    const { today, week, services, users, counters, notifications } = await api.get('/api/admin/overview');
     const live = today.liveQueues || [];
 
     body.innerHTML = `
       <div class="grid cols-4">
         <div class="card kpi brand"><div class="kpi-label">Tickets today</div><div class="kpi-value mono">${today.totalTickets}</div><div class="kpi-sub">${today.served} served</div></div>
-        <div class="card kpi accent"><div class="kpi-label">Avg wait</div><div class="kpi-value mono">${today.avgWaitMinutes}<span style="font-size:14px"> min</span></div><div class="kpi-sub">p95: ${today.p95WaitMinutes} min</div></div>
+        <div class="card kpi accent"><div class="kpi-label">Avg wait today</div><div class="kpi-value mono">${today.avgWaitSamples ? today.avgWaitMinutes : '—'}<span style="font-size:14px"> min</span></div><div class="kpi-sub">${today.avgWaitSamples ? `Calculated from ${today.avgWaitSamples} completed visits` : 'No completed visits yet'}</div></div>
         <div class="card kpi gold"><div class="kpi-label">Avg service</div><div class="kpi-value mono">${today.avgServiceMinutes}<span style="font-size:14px"> min</span></div><div class="kpi-sub">7-day: ${week.avgServiceMinutes} min</div></div>
         <div class="card kpi danger"><div class="kpi-label">CSAT</div><div class="kpi-value mono">${today.csat || '—'}<span style="font-size:14px"> /5</span></div><div class="kpi-sub">${today.feedbackCount} ratings · ${today.responseRate}% response</div></div>
       </div>
@@ -163,7 +168,7 @@ export async function renderAdmin(view, params) {
             </div>
             <div class="form-row">
               <div class="field"><label>Category</label><input class="input" id="f-cat" value="${escapeHtml(svc?.category || '')}" placeholder="Academic" /></div>
-              <div class="field"><label>Avg service (min)</label><input class="input" id="f-avg" type="number" min="1" max="120" value="${svc?.avgServiceMinutes || 5}" /></div>
+              <div class="field"><label>Service duration baseline (min)</label><input class="input" id="f-avg" type="number" min="1" max="120" value="${svc?.avgServiceMinutes || 5}" /><small class="muted">Used per visit; average wait is calculated from queue activity.</small></div>
             </div>
             <div class="form-row">
               <div class="field"><label>Building</label><input class="input" id="f-bld" value="${escapeHtml(svc?.building || '')}" required /></div>
@@ -239,8 +244,7 @@ export async function renderAdmin(view, params) {
 
   // ---- Counters ------------------------------------------------------
   async function renderCounters(body) {
-    const { data } = await api.get('/api/admin/overview');
-    const { counters, services, users } = data;
+    const { counters, services, users } = await api.get('/api/admin/overview');
     const employees = users.filter((u) => u.role === 'employee' || u.role === 'admin');
 
     body.innerHTML = `
@@ -280,6 +284,9 @@ export async function renderAdmin(view, params) {
             <div class="field"><label>Service</label>
               <select class="select" id="c-svc">${services.map((s) => `<option value="${s._id}">${escapeHtml(s.name)}</option>`).join('')}</select>
             </div>
+            <div class="field"><label>Registrar room (required for Registrar)</label>
+              <select class="select" id="c-room"><option value="">Not applicable</option><option value="OOB">OOB — General secondary</option><option value="OO7">OO7 — American, IG or foreign</option></select>
+            </div>
             <div class="field"><label>Assign to (optional)</label>
               <select class="select" id="c-emp"><option value="">— unassigned —</option>${employees.map((e) => `<option value="${e._id}">${escapeHtml(e.name)}</option>`).join('')}</select>
             </div>
@@ -294,6 +301,7 @@ export async function renderAdmin(view, params) {
               await api.post('/api/admin/counters', {
                 name,
                 serviceId: document.getElementById('c-svc').value,
+                roomCode: document.getElementById('c-room').value || undefined,
                 employeeId: document.getElementById('c-emp').value || null,
               });
               toast('Counter created', '', 'success');
@@ -339,8 +347,7 @@ export async function renderAdmin(view, params) {
 
   // ---- Users -----------------------------------------------------------
   async function renderUsers(body) {
-    const { data } = await api.get('/api/admin/overview');
-    const { users } = data;
+    const { users } = await api.get('/api/admin/overview');
     body.innerHTML = `
       <div class="flex-between" style="margin-bottom:14px">
         <div class="muted small">${users.length} accounts</div>
@@ -353,12 +360,13 @@ export async function renderAdmin(view, params) {
             <tr>
               <td><b>${escapeHtml(u.name)}</b></td>
               <td class="mono">${escapeHtml(u.email)}</td>
-              <td><span class="badge ${u.role === 'admin' ? 'gold' : u.role === 'employee' ? 'accent' : 'grey'}">${u.role}</span></td>
+              <td><span class="badge ${u.role === 'admin' ? 'gold' : ['employee','outside-usher','room-usher','registrar-staff'].includes(u.role) ? 'accent' : 'grey'}">${escapeHtml(u.role)}${u.roomCode ? ` · ${escapeHtml(u.roomCode)}` : ''}</span></td>
               <td>${fmtDate(u.createdAt)}</td>
               <td>${u.active === false ? '<span class="badge danger">Deactivated</span>' : '<span class="badge success">Active</span>'}</td>
               <td>
                 <div class="flex" style="gap:6px">
-                  <button class="btn sm ghost" data-role="${u._id}" data-current="${u.role}">Role</button>
+                  <button class="btn sm ghost" data-role="${u._id}" data-current="${u.role}" data-room="${u.roomCode || ''}">Role</button>
+                  <button class="btn sm ghost" data-reset-password="${u._id}">Reset password</button>
                   <button class="btn sm ${u.active === false ? 'primary' : 'danger-ghost'}" data-active="${u._id}" data-status="${u.active === false ? 'off' : 'on'}">
                     ${u.active === false ? 'Activate' : 'Deactivate'}
                   </button>
@@ -376,31 +384,59 @@ export async function renderAdmin(view, params) {
             <div class="field"><label>Full name</label><input class="input" id="u-name" required /></div>
             <div class="field"><label>Email</label><input class="input" id="u-email" type="email" required /></div>
             <div class="form-row">
-              <div class="field"><label>Role</label>
-                <select class="select" id="u-role"><option value="employee">Employee</option><option value="admin">Admin</option></select>
+              <div class="field"><label>Staff role</label>
+                <select class="select" id="u-role"><option value="outside-usher">Outside usher</option><option value="room-usher">Room usher</option><option value="registrar-staff">Registrar staff</option><option value="employee">Employee</option><option value="admin">Super admin</option></select>
+                <small class="muted" id="userRoleHint">Entrance check-in dashboard. No room assignment needed.</small>
               </div>
-              <div class="field"><label>Temporary password</label><input class="input" id="u-pass" type="password" value="Changeme@123" /></div>
+              <div class="field"><label>Temporary password</label><input class="input" id="u-pass" type="password" minlength="12" autocomplete="new-password" required /><small class="muted">Use at least 12 characters and share it securely with the staff member.</small></div>
             </div>
+            <div class="field" id="userRoomField" hidden><label>Assigned Registrar room</label><select class="select" id="u-room"><option value="OOB">Room OOB</option><option value="OO7">Room OO7</option></select><small class="muted">This account will only access its assigned room dashboard.</small></div>
+            <p class="small danger-text" id="userCreateError" hidden></p>
           </form>`,
         actions: [
           { label: 'Cancel', kind: 'ghost' },
           {
             label: 'Create', kind: 'primary',
             onClick: async () => {
+              const form = document.getElementById('usrForm');
+              if (!form.reportValidity()) return;
               try {
+                const role = document.getElementById('u-role').value;
                 await api.post('/api/admin/users', {
                   name: document.getElementById('u-name').value.trim(),
                   email: document.getElementById('u-email').value.trim(),
                   password: document.getElementById('u-pass').value,
-                  role: document.getElementById('u-role').value,
+                  role,
+                  ...(['room-usher', 'registrar-staff'].includes(role) ? { roomCode: document.getElementById('u-room').value } : {}),
                 });
-                toast('Staff account created', '', 'success');
+                closeModal();
+                toast('Staff account created', 'They can sign in to their assigned dashboard.', 'success');
                 renderTab();
-              } catch (err) { toast('Failed', err.message, 'error'); }
+              } catch (err) {
+                const error = document.getElementById('userCreateError');
+                if (error) { error.textContent = err.message; error.hidden = false; }
+              }
             },
+            keepOpen: true,
           },
         ],
       });
+      const roleSelect = document.getElementById('u-role');
+      const roleHint = document.getElementById('userRoleHint');
+      const roomRoles = ['room-usher', 'registrar-staff'];
+      const descriptions = {
+        'outside-usher': 'Entrance check-in dashboard: scan QR codes, verify appointments, and assign rooms.',
+        'room-usher': 'Room attendance dashboard: assist check-in and register walk-ins for one room.',
+        'registrar-staff': 'Registrar queue dashboard: call and complete appointments in one room.',
+        employee: 'Employee dashboard: manage assigned service counters.',
+        admin: 'Administrator dashboard: manage the whole QueueFlow system.',
+      };
+      const updateRoleFields = () => {
+        document.getElementById('userRoomField').hidden = !roomRoles.includes(roleSelect.value);
+        roleHint.textContent = descriptions[roleSelect.value];
+      };
+      roleSelect.onchange = updateRoleFields;
+      updateRoleFields();
     };
 
     body.querySelectorAll('[data-active]').forEach((b) => {
@@ -411,6 +447,18 @@ export async function renderAdmin(view, params) {
         renderTab();
       };
     });
+    body.querySelectorAll('[data-reset-password]').forEach((button) => {
+      button.onclick = async () => {
+        try {
+          const { temporaryPassword, user } = await api.post(`/api/admin/users/${button.dataset.resetPassword}/reset-password`, {});
+          openModal({
+            title: `Temporary password · ${user.name}`,
+            body: `<p>Share this once with <b>${escapeHtml(user.email)}</b> through a secure channel.</p><p class="mono" style="font-size:20px;user-select:all;overflow-wrap:anywhere"><b>${escapeHtml(temporaryPassword)}</b></p>`,
+            actions: [{ label: 'Done', kind: 'primary' }],
+          });
+        } catch (error) { toast('Could not reset password', error.message, 'error'); }
+      };
+    });
     body.querySelectorAll('[data-role]').forEach((b) => {
       b.onclick = () => {
         openModal({
@@ -418,22 +466,70 @@ export async function renderAdmin(view, params) {
           body: `<select class="select" id="roleSel">
             <option value="student">Student</option>
             <option value="employee">Employee</option>
+            <option value="outside-usher">Outside usher</option>
+            <option value="room-usher">Room usher</option>
+            <option value="registrar-staff">Registrar staff</option>
             <option value="admin">Admin</option>
-          </select>`,
+          </select><div class="field" id="roleRoomField" hidden><label>Assigned Registrar room</label><select class="select" id="roleRoom"><option value="OOB">OOB</option><option value="OO7">OO7</option></select></div>`,
           actions: [
             { label: 'Cancel', kind: 'ghost' },
             {
               label: 'Save', kind: 'primary',
               onClick: async () => {
-                await api.put(`/api/admin/users/${b.dataset.role}`, { role: document.getElementById('roleSel').value });
+                const role = document.getElementById('roleSel').value;
+                await api.put(`/api/admin/users/${b.dataset.role}`, { role, ...(['room-usher', 'registrar-staff'].includes(role) ? { roomCode: document.getElementById('roleRoom').value } : {}) });
                 toast('Role updated', '', 'success');
                 renderTab();
               },
             },
           ],
         });
+        const roleSelect = document.getElementById('roleSel');
+        roleSelect.value = b.dataset.current;
+        if (b.dataset.room) document.getElementById('roleRoom').value = b.dataset.room;
+        document.getElementById('roleRoomField').hidden = !['room-usher', 'registrar-staff'].includes(roleSelect.value);
+        roleSelect.onchange = () => { document.getElementById('roleRoomField').hidden = !['room-usher', 'registrar-staff'].includes(roleSelect.value); };
       };
     });
+  }
+
+  // ---- Registrar appointments --------------------------------------
+  async function renderAppointments(body) {
+    const renderList = async () => {
+      const query = new URLSearchParams({
+        date: body.querySelector('#appointmentDateFilter').value,
+        status: body.querySelector('#appointmentStatusFilter').value,
+        room: body.querySelector('#appointmentRoomFilter').value,
+        q: body.querySelector('#appointmentQuery').value.trim(),
+      });
+      const { appointments, summary } = await api.get('/api/registrar/admin/appointments?' + query);
+      body.querySelector('#appointmentSummary').textContent = 'Booked ' + (summary.booked || 0) + ' | Checked in ' + (summary['checked-in'] || 0) + ' | Pending ' + (summary.pending || 0) + ' | Called ' + (summary.called || 0) + ' | Completed ' + (summary.completed || 0) + ' | OOB ' + (summary['room:OOB'] || 0) + ' | OO7 ' + (summary['room:OO7'] || 0);
+      body.querySelector('#appointmentRows').innerHTML = appointments.map((ticket) => '<tr><td><b>' + escapeHtml(ticket.queueNumber || ticket.code) + '</b><div class="small muted">' + escapeHtml(ticket.appointmentNumber || '') + '</div></td><td>' + escapeHtml(ticket.userName || '') + '<div class="small muted">' + escapeHtml(ticket.studentId || '') + '</div></td><td>' + escapeHtml(ticket.registrarProfile?.certificateType || '') + '<div class="small muted">' + escapeHtml(ticket.registrarProfile?.major || '') + '</div></td><td>' + escapeHtml(ticket.appointmentDate || '') + ' ' + escapeHtml(ticket.timeSlot || '') + '</td><td>' + escapeHtml(ticket.roomCode || ticket.suggestedRoomCode || 'Unassigned') + '</td><td>' + escapeHtml(ticket.registrarProfile?.paymentStatus || '') + ' / ' + escapeHtml(ticket.registrarProfile?.documentsStatus || '') + '</td><td><span class="badge ' + (ticket.appointmentStatus === 'completed' ? 'success' : ticket.appointmentStatus === 'pending' ? 'warn' : ticket.appointmentStatus === 'called' ? 'accent' : 'grey') + '">' + escapeHtml(ticket.appointmentStatus || 'booked') + '</span></td></tr>').join('') || '<tr><td colspan="7" class="empty">No appointments match these filters.</td></tr>';
+    };
+    body.innerHTML = '<div class="card card-pad"><div class="page-head"><h2>Appointment management</h2><div class="sub">Bookings, room workload, and appointment status.</div></div><div class="registrar-ops-stats" id="appointmentSummary"></div><form id="appointmentFilters" class="appointment-filters"><input class="input" type="date" id="appointmentDateFilter"/><select class="select" id="appointmentStatusFilter"><option value="">All statuses</option><option>booked</option><option>checked-in</option><option>pending</option><option>called</option><option>completed</option><option>cancelled</option></select><select class="select" id="appointmentRoomFilter"><option value="">All rooms</option><option>OOB</option><option>OO7</option></select><input class="input" id="appointmentQuery" placeholder="Name, student ID, queue or appointment number"/><button class="btn primary" type="submit">Filter</button></form></div><div class="card room-queue-card"><div class="table-wrap"><table class="table"><thead><tr><th>Queue</th><th>Student</th><th>Certificate / major</th><th>Appointment</th><th>Room</th><th>Payment / papers</th><th>Status</th></tr></thead><tbody id="appointmentRows"></tbody></table></div></div>';
+    const now = new Date();
+    body.querySelector('#appointmentDateFilter').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    body.querySelector('#appointmentFilters').onsubmit = async (event) => { event.preventDefault(); await renderList(); };
+    await renderList();
+  }
+
+  async function renderBookingSchedule(body) {
+    const settings = await api.get('/api/admin/registrar/booking-settings');
+    const days = [['sunday','Sunday'],['monday','Monday'],['tuesday','Tuesday'],['wednesday','Wednesday'],['thursday','Thursday'],['friday','Friday'],['saturday','Saturday']];
+    body.innerHTML = `<section class="card card-pad"><div class="page-head"><h2>Registrar booking schedule</h2><div class="sub">Online bookings are for today, 8:00 AM–3:00 PM. Staff walk-in registration remains available when online bookings are closed.</div></div><form id="bookingScheduleForm"><label class="flex"><input type="checkbox" id="bookingEnabled" ${settings.enabled ? 'checked' : ''}/> Accept online bookings</label><h3 class="section-gap">Closed days</h3><div class="grid cols-3">${days.map(([key,label]) => `<label class="flex"><input type="checkbox" name="closedDay" value="${key}" ${settings.closedDays.includes(key) ? 'checked' : ''}/> ${label}</label>`).join('')}</div><div class="flex" style="margin-top:18px"><button class="btn primary" type="submit">Save schedule</button><span class="muted small">Friday and Saturday are closed by default.</span></div></form></section>`;
+    body.querySelector('#bookingScheduleForm').onsubmit = async (event) => {
+      event.preventDefault();
+      try {
+        const closedDays = [...body.querySelectorAll('input[name="closedDay"]:checked')].map((input) => input.value);
+        await api.put('/api/admin/registrar/booking-settings', { enabled: body.querySelector('#bookingEnabled').checked, closedDays });
+        toast('Booking schedule saved', 'Online booking hours and closed days updated.', 'success');
+      } catch (error) { toast('Could not save schedule', error.message, 'error'); }
+    };
+  }
+
+  async function renderAudit(body) {
+    const { logs } = await api.get('/api/registrar/admin/audit');
+    body.innerHTML = `<div class="card"><div class="card-pad"><h2>Audit log</h2><p class="muted small">Entrance verification, room assignment, attendance, calls, skips, and completion records.</p></div><div class="table-wrap"><table class="table"><thead><tr><th>Time</th><th>Action</th><th>Appointment</th><th>Actor</th><th>Details</th></tr></thead><tbody>${logs.map((item) => `<tr><td>${fmtDateTime(item.createdAt)}</td><td><b>${escapeHtml(item.action)}</b></td><td>${escapeHtml(item.appointmentNumber || '')}</td><td>${escapeHtml(item.actorEmail || '')}<div class="small muted">${escapeHtml(item.actorRole || '')}</div></td><td>${escapeHtml(JSON.stringify(item.details || {}))}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No audit events yet.</td></tr>'}</tbody></table></div></div>`;
   }
 
   // ---- Integration ------------------------------------------------------

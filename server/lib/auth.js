@@ -56,6 +56,7 @@ function allowRoles(...roles) {
       email: userDoc.email,
       role: userDoc.role,
       name: userDoc.name,
+      roomCode: userDoc.roomCode || null,
     };
     if (roles.length && !roles.includes(userDoc.role)) {
       return res.status(403).json({ error: `Requires role: ${roles.join(' or ')}` });

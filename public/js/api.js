@@ -34,8 +34,8 @@ export const api = {
   put: (p, b) => api.request('PUT', p, b),
   del: (p) => api.request('DELETE', p),
 
-  login(token, user) { this.token = token; this.user = user; },
-  logout() { this.token = null; this.user = null; },
+  login(token, user) { this.token = token; this.user = user; socket.emit('auth', token); },
+  logout() { this.token = null; this.user = null; socket.disconnect().connect(); },
 };
 
 export const socket = io({ autoConnect: true, reconnection: true, reconnectionDelay: 1500 });
