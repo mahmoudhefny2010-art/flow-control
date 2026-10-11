@@ -1,3 +1,5 @@
-// Vercel Express entry point; the server module starts the app on process.env.PORT.
-require('express');
-require('./server/index');
+// Vercel Express entry point. Static assets are served from public/ by Vercel.
+const express = require('express');
+const { createApplication } = require('./server/app');
+
+module.exports = createApplication(express).app;

@@ -22,12 +22,13 @@ flow-control/
 │       ├── ui.js           # Shared interface helpers
 │       └── views/          # Screen renderers by feature
 ├── server/
-│   ├── index.js            # Express and Socket.IO entry point
+│   ├── app.js              # Express app factory for local/Vercel runtimes
+│   ├── index.js            # Local HTTP and Socket.IO listener
 │   ├── config/             # Environment-backed configuration
 │   ├── routes/             # HTTP API endpoints by feature
 │   └── lib/                # Auth, queue logic, integrations, storage
 ├── scripts/                # Seed data and local development proxy
-├── index.js                # Vercel Express entry point
+├── index.js                # Vercel Express app export
 ├── tests/                  # Automated Node.js tests, grouped by feature
 │   └── auth/               # Authentication tests
 ├── docs/                   # Setup and architecture notes
