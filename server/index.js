@@ -2,9 +2,10 @@
 require('dotenv').config({ override: false });
 const config = require('./config');
 const { createApplication } = require('./app');
+const express = require('express');
 
 async function bootstrap() {
-  const { app, server, io, storePromise } = createApplication();
+  const { app, server, io, storePromise } = createApplication(express);
   const store = await storePromise;
 
   await new Promise((resolve, reject) => {
